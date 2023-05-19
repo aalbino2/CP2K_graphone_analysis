@@ -138,99 +138,104 @@ def extract_mulliken(cp2k_output_file: str, xyz_file: str, last_step_no: int, at
     pattern4 = r"SCF WAVEFUNCTION OPTIMIZATION.*?ENERGY\| Total FORCE_EVAL \( QS \) energy \(a\.u\.\):" # ENERGY_FORCE
 
     with open(cp2k_output_file, 'r', encoding='utf8') as file:
-        file_chunk = re.findall(pattern4, file.read(), re.DOTALL)
-        match_found = False
-        mulliken_list: List[str] = []
-        mulliken = np.zeros((int(atoms_number)))
-        carbon_mulliken = np.zeros((int(atoms_number)))
-        for line in file_chunk[-1].split('\n'):
-            if match_found:
-                mulliken_list.append(line)
-                atoms_number -= 1
-                if atoms_number == 0:
+        rks = re.search("DFT| Spin unrestricted (spin-polarized) Kohn-Sham calculation", file.read())
+        if not rks:
+            file_chunk = re.findall(pattern4, file.read(), re.DOTALL)
+            match_found = False
+            mulliken_list: List[str] = []
+            mulliken = np.zeros((int(atoms_number)))
+            carbon_mulliken = np.zeros((int(atoms_number)))
+            for line in file_chunk[-1].split('\n'):
+                if match_found:
+                    mulliken_list.append(line)
+                    atoms_number -= 1
+                    if atoms_number == 0:
+                        break
+                elif re.search("Mulliken Population Analysis", line):
+                    match_found = True
+            for atom in mulliken_list[2:]:
+                fields = atom.split()
+                if fields[1] in ['Au']:
+                    break  # ######### !!! I assume the relevant C and H are placed before the Au in the xyz file - see also further #############à
+                if fields[1] in ['C', 'C1', 'C2']:
+                    mulliken[int(fields[0])] = float(fields[6])
+                    carbon_mulliken[int(fields[0])] = float(fields[6])
+                elif fields[1] in ['H', 'F']:
+                    mulliken[int(fields[0])] = float(fields[6])
+                    carbon_mulliken[int(fields[0])] = float(0)
+                else:
+                    mulliken[int(fields[0])] = float(0)
+                    carbon_mulliken[int(fields[0])] = float(0)
+    if rks:
+        print("\n\n the calculation is RKS! No spin Mulliken file printed\n\n")
+    else:
+        mulliken_file = f"{cp2k_output_file.split('.restart')[0]}_MULLIKEN.txt"
+        with open(mulliken_file, 'w', encoding='utf8') as file:
+            file.write("The Mulliken charges are extracted from the last optimization step in:\n")
+            file.write(f"{cp2k_output_file}\n")
+            file.write("#\n")
+            positive = np.sum(mulliken[mulliken > 0])
+            negative = np.sum(mulliken[mulliken < 0])
+            total = positive + negative
+            total_abs_value = positive - negative
+            carbon_positive = np.sum(carbon_mulliken[carbon_mulliken > 0])
+            carbon_negative = np.sum(carbon_mulliken[carbon_mulliken < 0])
+            carbon_total = carbon_positive + carbon_negative
+            carbon_total_abs_value = carbon_positive - carbon_negative
+            natoms, atom_kinds, _, _ = read_xyz(xyz_file)
+            counts: Dict[str, int] = {}
+            for item in atom_kinds:
+                if item in counts:
+                    counts[item] += 1
+                else:
+                    counts[item] = 1
+            csp2atoms = 0
+            carbon_atoms = 0
+            for i in counts.items():
+                if "C" in i[0]:
+                    csp2atoms += i[1]
+                    carbon_atoms += i[1]
+                if "H" in i[0]:
+                    csp2atoms -= i[1]
+                if "Au" in i[0]:
                     break
-            elif re.search("Mulliken Population Analysis", line):
-                match_found = True
-        for atom in mulliken_list[2:]:
-            fields = atom.split()
-            if fields[1] in ['Au']:
-                break  # ######### !!! I assume the relevant C and H are placed before the Au in the xyz file - see also further #############à
-            if fields[1] in ['C', 'C1', 'C2']:
-                mulliken[int(fields[0])] = float(fields[6])
-                carbon_mulliken[int(fields[0])] = float(fields[6])
-            elif fields[1] in ['H', 'F']:
-                mulliken[int(fields[0])] = float(fields[6])
-                carbon_mulliken[int(fields[0])] = float(0)
-            else:
-                mulliken[int(fields[0])] = float(0)
-                carbon_mulliken[int(fields[0])] = float(0)
-    mulliken_file = f"{cp2k_output_file.split('.restart')[0]}_MULLIKEN.txt"
-    with open(mulliken_file, 'w', encoding='utf8') as file:
-        file.write("The Mulliken charges are extracted from the last optimization step in:\n")
-        file.write(f"{cp2k_output_file}\n")
-        file.write("#\n")
-        positive = np.sum(mulliken[mulliken > 0])
-        negative = np.sum(mulliken[mulliken < 0])
-        total = positive + negative
-        total_abs_value = positive - negative
-        carbon_positive = np.sum(carbon_mulliken[carbon_mulliken > 0])
-        carbon_negative = np.sum(carbon_mulliken[carbon_mulliken < 0])
-        carbon_total = carbon_positive + carbon_negative
-        carbon_total_abs_value = carbon_positive - carbon_negative
-        natoms, atom_kinds, _, _ = read_xyz(xyz_file)
-        counts: Dict[str, int] = {}
-        for item in atom_kinds:
-            if item in counts:
-                counts[item] += 1
-            else:
-                counts[item] = 1
-        csp2atoms = 0
-        carbon_atoms = 0
-        for i in counts.items():
-            if "C" in i[0]:
-                csp2atoms += i[1]
-                carbon_atoms += i[1]
-            if "H" in i[0]:
-                csp2atoms -= i[1]
-            if "Au" in i[0]:
-                break
-        ncells = carbon_atoms / 2
-        file.write(f"Total number of atoms: {natoms}\n")
-        file.write(f"Number of Carbon atoms: {carbon_atoms}\n")
-        file.write(f"Number of graphene unit cells: {ncells}\n")
-        file.write(f"Number of SP2 Carbon atoms: {csp2atoms}\n")
-        file.write(f"Total of Mulliken charges: {total}\n")
-        file.write(f"Positive Mulliken charges: {positive}\n")
-        file.write(f"Negative Mulliken charges: {negative}\n")
-        file.write(f"Total of Mulliken charges ABS value: {total_abs_value}\n")
-        file.write(f"Positive Mulliken charges per unit cell: {positive / ncells}\n")
-        file.write(f"Negative Mulliken charges per unit cell: {negative / ncells}\n")
-        file.write(f"Mulliken charges per unit cell ABS value: {total_abs_value / ncells}\n")
-        file.write(f"Positive Mulliken charges per carbon atom: {positive / natoms}\n")
-        file.write(f"Negative Mulliken charges per carbon atom: {negative / natoms}\n")
-        file.write(f"Mulliken charges per carbon atom ABS value: {total_abs_value / natoms}\n")
-        file.write(f"Positive Mulliken charges per SP2 carbon atom: {positive / csp2atoms}\n")
-        file.write(f"Negative Mulliken charges per SP2 carbon atom: {negative / csp2atoms}\n")
-        file.write(f"Mulliken charges per SP2 carbon atom ABS value: {total_abs_value / csp2atoms}\n")
-        file.write("\nAgain the same parameters, counting only Mulliken on CARBON ATOMS\n\n")
-        file.write(f"Number of unit cells: {ncells}\n")
-        file.write(f"Number of atoms: {natoms}\n")
-        file.write(f"Number of Carbon atoms: {carbon_atoms}\n")
-        file.write(f"Number of SP2 Carbon atoms: {csp2atoms}\n")
-        file.write(f"Total of Mulliken charges: {carbon_total}\n")
-        file.write(f"Positive Mulliken charges: {carbon_positive}\n")
-        file.write(f"Negative Mulliken charges: {carbon_negative}\n")
-        file.write(f"Total of Mulliken charges ABS value: {carbon_total_abs_value}\n")
-        file.write(f"Positive Mulliken charges per unit cell: {carbon_positive / ncells}\n")
-        file.write(f"Negative Mulliken charges per unit cell: {carbon_negative / ncells}\n")
-        file.write(f"Mulliken charges per unit cell ABS value: {carbon_total_abs_value / ncells}\n")
-        file.write(f"Positive Mulliken charges per carbon atom: {carbon_positive / natoms}\n")
-        file.write(f"Negative Mulliken charges per carbon atom: {carbon_negative / natoms}\n")
-        file.write(f"Mulliken charges per carbon atom ABS value: {carbon_total_abs_value / natoms}\n")
-        file.write(f"Positive Mulliken charges per SP2 carbon atom: {carbon_positive / csp2atoms}\n")
-        file.write(f"Negative Mulliken charges per SP2 carbon atom: {carbon_negative / csp2atoms}\n")
-        file.write(f"Mulliken charges per SP2 carbon atom ABS value: {carbon_total_abs_value / csp2atoms}\n")
-    # return mulliken
+            ncells = carbon_atoms / 2
+            file.write(f"Total number of atoms: {natoms}\n")
+            file.write(f"Number of Carbon atoms: {carbon_atoms}\n")
+            file.write(f"Number of graphene unit cells: {ncells}\n")
+            file.write(f"Number of SP2 Carbon atoms: {csp2atoms}\n")
+            file.write(f"Total of Mulliken charges: {total}\n")
+            file.write(f"Positive Mulliken charges: {positive}\n")
+            file.write(f"Negative Mulliken charges: {negative}\n")
+            file.write(f"Total of Mulliken charges ABS value: {total_abs_value}\n")
+            file.write(f"Positive Mulliken charges per unit cell: {positive / ncells}\n")
+            file.write(f"Negative Mulliken charges per unit cell: {negative / ncells}\n")
+            file.write(f"Mulliken charges per unit cell ABS value: {total_abs_value / ncells}\n")
+            file.write(f"Positive Mulliken charges per carbon atom: {positive / natoms}\n")
+            file.write(f"Negative Mulliken charges per carbon atom: {negative / natoms}\n")
+            file.write(f"Mulliken charges per carbon atom ABS value: {total_abs_value / natoms}\n")
+            file.write(f"Positive Mulliken charges per SP2 carbon atom: {positive / csp2atoms}\n")
+            file.write(f"Negative Mulliken charges per SP2 carbon atom: {negative / csp2atoms}\n")
+            file.write(f"Mulliken charges per SP2 carbon atom ABS value: {total_abs_value / csp2atoms}\n")
+            file.write("\nAgain the same parameters, counting only Mulliken on CARBON ATOMS\n\n")
+            file.write(f"Number of unit cells: {ncells}\n")
+            file.write(f"Number of atoms: {natoms}\n")
+            file.write(f"Number of Carbon atoms: {carbon_atoms}\n")
+            file.write(f"Number of SP2 Carbon atoms: {csp2atoms}\n")
+            file.write(f"Total of Mulliken charges: {carbon_total}\n")
+            file.write(f"Positive Mulliken charges: {carbon_positive}\n")
+            file.write(f"Negative Mulliken charges: {carbon_negative}\n")
+            file.write(f"Total of Mulliken charges ABS value: {carbon_total_abs_value}\n")
+            file.write(f"Positive Mulliken charges per unit cell: {carbon_positive / ncells}\n")
+            file.write(f"Negative Mulliken charges per unit cell: {carbon_negative / ncells}\n")
+            file.write(f"Mulliken charges per unit cell ABS value: {carbon_total_abs_value / ncells}\n")
+            file.write(f"Positive Mulliken charges per carbon atom: {carbon_positive / natoms}\n")
+            file.write(f"Negative Mulliken charges per carbon atom: {carbon_negative / natoms}\n")
+            file.write(f"Mulliken charges per carbon atom ABS value: {carbon_total_abs_value / natoms}\n")
+            file.write(f"Positive Mulliken charges per SP2 carbon atom: {carbon_positive / csp2atoms}\n")
+            file.write(f"Negative Mulliken charges per SP2 carbon atom: {carbon_negative / csp2atoms}\n")
+            file.write(f"Mulliken charges per SP2 carbon atom ABS value: {carbon_total_abs_value / csp2atoms}\n")
+        # return mulliken
 
 
 def extract_restart_file_info(cp2k_restart_file: str) -> Tuple[int, int]:
@@ -257,10 +262,15 @@ def extract_restart_file_info(cp2k_restart_file: str) -> Tuple[int, int]:
                 elif "CELL_OPT" in line:
                     pattern = "&CELL_OPT.*\n.*&END CELL_OPT"
                     file_chunk = re.findall(pattern, restart_file.read(), re.DOTALL)[0]
+                elif "ENERGY_FORCE" in line:
+                    sys.stdout.write('\nIT IS AN ENERGY_FORCE SINGLE POINT\n')
+                    file_chunk = "ENERGY_FORCE"
                 else:
-                    raise Exception('GEO_OPT or CELL_OPT not found')
+                    raise Exception('GEO_OPT or CELL_OPT or ENERGY_FORCE not found')
                 if re.search("STEP_START_VAL", file_chunk):
                     restart_step_no = int(file_chunk.split("STEP_START_VAL")[1].split('\n')[0])
+                else:
+                    restart_step_no = 1
         restart_file.seek(0)
         for line in restart_file:
             if re.search("NUMBER_OF_ATOMS", line):
