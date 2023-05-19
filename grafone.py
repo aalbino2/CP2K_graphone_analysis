@@ -139,8 +139,6 @@ def extract_mulliken(cp2k_output_file: str, xyz_file: str, last_step_no: int, at
 
     with open(cp2k_output_file, 'r', encoding='utf8') as file:
         file_chunk = re.findall(pattern4, file.read(), re.DOTALL)
-        print(f"  molto zioccccccccccccccccannnnnnnnnn {pattern4}")
-        print(f"zioccccccccccccccccannnnnnnnnn {file_chunk[-1]}")
         match_found = False
         mulliken_list: List[str] = []
         mulliken = np.zeros((int(atoms_number)))
