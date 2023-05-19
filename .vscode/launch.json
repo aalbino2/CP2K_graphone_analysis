@@ -1,0 +1,24 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "g_cp2k_dos.py",
+            "type": "python",
+            "request": "launch",
+            "program": "/home/andrea/Data/Uni/5_DOTTORATO/GRAFENE/ARTICOLO/CODE/1_python/files/g_cp2k_dos.py", // "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        }
+        {
+            "name": "gCp2kDos_OLD.py",
+            "type": "python",
+            "request": "launch",
+            "program": "/home/andrea/Data/Uni/5_DOTTORATO/GRAFENE/ARTICOLO/CODE/1_python/files/gCp2kDos_OLD.py", // "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        }
+    ]
+}

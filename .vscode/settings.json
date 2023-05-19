@@ -1,0 +1,28 @@
+{
+    "python.defaultInterpreterPath": "/home/andrea/.pyenv/bin/python",
+    "python.terminal.activateEnvInCurrentTerminal": true,
+    "editor.rulers": [
+        100
+    ],
+    "editor.renderWhitespace": "all",
+    "editor.tabSize": 4,
+    "[javascript]": {
+        "editor.tabSize": 2
+    },
+    "files.trimTrailingWhitespace": true,
+    "python.linting.pylintArgs": [
+        "--load-plugins=pylint_mongoengine",
+    ],
+    "python.linting.pycodestylePath": "pycodestyle",
+    "python.linting.pycodestyleEnabled": true,
+    "python.linting.pycodestyleArgs": [
+        "--config=${workspaceFolder}/pycodestyle.ini"
+    ],
+    "python.linting.mypyEnabled": true,
+    "python.linting.mypyArgs": [
+        "--ignore-missing-imports",
+        "--follow-imports=silent",
+        "--no-strict-optional"
+    ],
+    "python.linting.pylintEnabled": true
+}
