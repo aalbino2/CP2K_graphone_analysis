@@ -138,8 +138,13 @@ def extract_mulliken(cp2k_output_file: str, xyz_file: str, last_step_no: int, at
     pattern4 = r"SCF WAVEFUNCTION OPTIMIZATION.*?ENERGY\| Total FORCE_EVAL \( QS \) energy \(a\.u\.\):" # ENERGY_FORCE
 
     with open(cp2k_output_file, 'r', encoding='utf8') as file:
-        rks = re.search("DFT| Spin unrestricted (spin-polarized) Kohn-Sham calculation", file.read())
-        if not rks:
+        rks = re.search(r"DFT\| Spin restricted Kohn-Sham \(RKS\) calculation", file.read())
+        file.seek(0)
+        uks = re.search(r"DFT\| Spin unrestricted \(spin-polarized\) Kohn-Sham calculation", file.read())
+        if rks and not uks:
+            print("\n\n the calculation is RKS! No spin Mulliken file printed\n\n")
+        elif uks and not rks:
+            file.seek(0)
             file_chunk = re.findall(pattern4, file.read(), re.DOTALL)
             match_found = False
             mulliken_list: List[str] = []
@@ -166,76 +171,75 @@ def extract_mulliken(cp2k_output_file: str, xyz_file: str, last_step_no: int, at
                 else:
                     mulliken[int(fields[0])] = float(0)
                     carbon_mulliken[int(fields[0])] = float(0)
-    if rks:
-        print("\n\n the calculation is RKS! No spin Mulliken file printed\n\n")
-    else:
-        mulliken_file = f"{cp2k_output_file.split('.restart')[0]}_MULLIKEN.txt"
-        with open(mulliken_file, 'w', encoding='utf8') as file:
-            file.write("The Mulliken charges are extracted from the last optimization step in:\n")
-            file.write(f"{cp2k_output_file}\n")
-            file.write("#\n")
-            positive = np.sum(mulliken[mulliken > 0])
-            negative = np.sum(mulliken[mulliken < 0])
-            total = positive + negative
-            total_abs_value = positive - negative
-            carbon_positive = np.sum(carbon_mulliken[carbon_mulliken > 0])
-            carbon_negative = np.sum(carbon_mulliken[carbon_mulliken < 0])
-            carbon_total = carbon_positive + carbon_negative
-            carbon_total_abs_value = carbon_positive - carbon_negative
-            natoms, atom_kinds, _, _ = read_xyz(xyz_file)
-            counts: Dict[str, int] = {}
-            for item in atom_kinds:
-                if item in counts:
-                    counts[item] += 1
-                else:
-                    counts[item] = 1
-            csp2atoms = 0
-            carbon_atoms = 0
-            for i in counts.items():
-                if "C" in i[0]:
-                    csp2atoms += i[1]
-                    carbon_atoms += i[1]
-                if "H" in i[0]:
-                    csp2atoms -= i[1]
-                if "Au" in i[0]:
-                    break
-            ncells = carbon_atoms / 2
-            file.write(f"Total number of atoms: {natoms}\n")
-            file.write(f"Number of Carbon atoms: {carbon_atoms}\n")
-            file.write(f"Number of graphene unit cells: {ncells}\n")
-            file.write(f"Number of SP2 Carbon atoms: {csp2atoms}\n")
-            file.write(f"Total of Mulliken charges: {total}\n")
-            file.write(f"Positive Mulliken charges: {positive}\n")
-            file.write(f"Negative Mulliken charges: {negative}\n")
-            file.write(f"Total of Mulliken charges ABS value: {total_abs_value}\n")
-            file.write(f"Positive Mulliken charges per unit cell: {positive / ncells}\n")
-            file.write(f"Negative Mulliken charges per unit cell: {negative / ncells}\n")
-            file.write(f"Mulliken charges per unit cell ABS value: {total_abs_value / ncells}\n")
-            file.write(f"Positive Mulliken charges per carbon atom: {positive / natoms}\n")
-            file.write(f"Negative Mulliken charges per carbon atom: {negative / natoms}\n")
-            file.write(f"Mulliken charges per carbon atom ABS value: {total_abs_value / natoms}\n")
-            file.write(f"Positive Mulliken charges per SP2 carbon atom: {positive / csp2atoms}\n")
-            file.write(f"Negative Mulliken charges per SP2 carbon atom: {negative / csp2atoms}\n")
-            file.write(f"Mulliken charges per SP2 carbon atom ABS value: {total_abs_value / csp2atoms}\n")
-            file.write("\nAgain the same parameters, counting only Mulliken on CARBON ATOMS\n\n")
-            file.write(f"Number of unit cells: {ncells}\n")
-            file.write(f"Number of atoms: {natoms}\n")
-            file.write(f"Number of Carbon atoms: {carbon_atoms}\n")
-            file.write(f"Number of SP2 Carbon atoms: {csp2atoms}\n")
-            file.write(f"Total of Mulliken charges: {carbon_total}\n")
-            file.write(f"Positive Mulliken charges: {carbon_positive}\n")
-            file.write(f"Negative Mulliken charges: {carbon_negative}\n")
-            file.write(f"Total of Mulliken charges ABS value: {carbon_total_abs_value}\n")
-            file.write(f"Positive Mulliken charges per unit cell: {carbon_positive / ncells}\n")
-            file.write(f"Negative Mulliken charges per unit cell: {carbon_negative / ncells}\n")
-            file.write(f"Mulliken charges per unit cell ABS value: {carbon_total_abs_value / ncells}\n")
-            file.write(f"Positive Mulliken charges per carbon atom: {carbon_positive / natoms}\n")
-            file.write(f"Negative Mulliken charges per carbon atom: {carbon_negative / natoms}\n")
-            file.write(f"Mulliken charges per carbon atom ABS value: {carbon_total_abs_value / natoms}\n")
-            file.write(f"Positive Mulliken charges per SP2 carbon atom: {carbon_positive / csp2atoms}\n")
-            file.write(f"Negative Mulliken charges per SP2 carbon atom: {carbon_negative / csp2atoms}\n")
-            file.write(f"Mulliken charges per SP2 carbon atom ABS value: {carbon_total_abs_value / csp2atoms}\n")
-        # return mulliken
+            mulliken_file = f"{cp2k_output_file.split('.restart')[0]}_MULLIKEN.txt"
+            with open(mulliken_file, 'w', encoding='utf8') as file:
+                file.write("The Mulliken charges are extracted from the last optimization step in:\n")
+                file.write(f"{cp2k_output_file}\n")
+                file.write("#\n")
+                positive = np.sum(mulliken[mulliken > 0])
+                negative = np.sum(mulliken[mulliken < 0])
+                total = positive + negative
+                total_abs_value = positive - negative
+                carbon_positive = np.sum(carbon_mulliken[carbon_mulliken > 0])
+                carbon_negative = np.sum(carbon_mulliken[carbon_mulliken < 0])
+                carbon_total = carbon_positive + carbon_negative
+                carbon_total_abs_value = carbon_positive - carbon_negative
+                natoms, atom_kinds, _, _ = read_xyz(xyz_file)
+                counts: Dict[str, int] = {}
+                for item in atom_kinds:
+                    if item in counts:
+                        counts[item] += 1
+                    else:
+                        counts[item] = 1
+                csp2atoms = 0
+                carbon_atoms = 0
+                for i in counts.items():
+                    if "C" in i[0]:
+                        csp2atoms += i[1]
+                        carbon_atoms += i[1]
+                    if "H" in i[0]:
+                        csp2atoms -= i[1]
+                    if "Au" in i[0]:
+                        break
+                ncells = carbon_atoms / 2
+                file.write(f"Total number of atoms: {natoms}\n")
+                file.write(f"Number of Carbon atoms: {carbon_atoms}\n")
+                file.write(f"Number of graphene unit cells: {ncells}\n")
+                file.write(f"Number of SP2 Carbon atoms: {csp2atoms}\n")
+                file.write(f"Total of Mulliken charges: {total}\n")
+                file.write(f"Positive Mulliken charges: {positive}\n")
+                file.write(f"Negative Mulliken charges: {negative}\n")
+                file.write(f"Total of Mulliken charges ABS value: {total_abs_value}\n")
+                file.write(f"Positive Mulliken charges per unit cell: {positive / ncells}\n")
+                file.write(f"Negative Mulliken charges per unit cell: {negative / ncells}\n")
+                file.write(f"Mulliken charges per unit cell ABS value: {total_abs_value / ncells}\n")
+                file.write(f"Positive Mulliken charges per carbon atom: {positive / carbon_atoms}\n")
+                file.write(f"Negative Mulliken charges per carbon atom: {negative / carbon_atoms}\n")
+                file.write(f"Mulliken charges per carbon atom ABS value: {total_abs_value / carbon_atoms}\n")
+                file.write(f"Positive Mulliken charges per SP2 carbon atom: {positive / csp2atoms}\n")
+                file.write(f"Negative Mulliken charges per SP2 carbon atom: {negative / csp2atoms}\n")
+                file.write(f"Mulliken charges per SP2 carbon atom ABS value: {total_abs_value / csp2atoms}\n")
+                file.write("\nAgain the same parameters, counting only Mulliken on CARBON ATOMS\n\n")
+                file.write(f"Total number of atoms: {natoms}\n")
+                file.write(f"Number of Carbon atoms: {carbon_atoms}\n")
+                file.write(f"Number of graphene unit cells: {ncells}\n")
+                file.write(f"Number of SP2 Carbon atoms: {csp2atoms}\n")
+                file.write(f"Total of Mulliken charges: {carbon_total}\n")
+                file.write(f"Positive Mulliken charges: {carbon_positive}\n")
+                file.write(f"Negative Mulliken charges: {carbon_negative}\n")
+                file.write(f"Total of Mulliken charges ABS value: {carbon_total_abs_value}\n")
+                file.write(f"Positive Mulliken charges per unit cell: {carbon_positive / ncells}\n")
+                file.write(f"Negative Mulliken charges per unit cell: {carbon_negative / ncells}\n")
+                file.write(f"Mulliken charges per unit cell ABS value: {carbon_total_abs_value / ncells}\n")
+                file.write(f"Positive Mulliken charges per carbon atom: {carbon_positive / carbon_atoms}\n")
+                file.write(f"Negative Mulliken charges per carbon atom: {carbon_negative / carbon_atoms}\n")
+                file.write(f"Mulliken charges per carbon atom ABS value: {carbon_total_abs_value / carbon_atoms}\n")
+                file.write(f"Positive Mulliken charges per SP2 carbon atom: {carbon_positive / csp2atoms}\n")
+                file.write(f"Negative Mulliken charges per SP2 carbon atom: {carbon_negative / csp2atoms}\n")
+                file.write(f"Mulliken charges per SP2 carbon atom ABS value: {carbon_total_abs_value / csp2atoms}\n")
+            # return mulliken
+        else:
+            print("\n\n the calculation is neither RKS nor UKS! CHECK CP2K OUTPUT FILE \n\n")
 
 
 def extract_restart_file_info(cp2k_restart_file: str) -> Tuple[int, int]:
@@ -479,3 +483,76 @@ def launch_tool(sigma, filename, output, restart):
 
 if __name__ == '__main__':
     launch_tool().parse()  # pylint: disable=no-value-for-parameter
+
+
+
+
+
+# import matplotlib.pyplot as plt
+
+# plt.rcParams['text.usetex'] = True
+# plt.rcParams['text.latex.preamble'] = r"""
+#     \usepackage[defaultsans]{droidsans}
+#     \usepackage[T1]{fontenc}
+#     \usepackage{units}
+#     \usepackage{amsmath}
+#     \usepackage[version=3]{mhchem}
+#     \usepackage{balance}
+#     \usepackage{times,mathptmx}
+#     \usepackage{graphicx}
+#     \usepackage{lastpage}
+# """
+
+# linestyles = [
+#     ("#800000", 3.5, 7, 2),  # Maroon
+#     ("#9A6324", 3.5, 7, 2),  # Brown
+#     ("#808000", 3.5, 7, 2),  # Olive
+#     ("#e6194B", 3.5, 7, 2),  # Red
+#     ("#f58231", 3.5, 7, 2),  # Orange
+#     ("#ffd8b1", 3.5, 7, 2),  # Apricot
+#     ("#ffe119", 3.5, 7, 2),  # Yellow
+#     ("#bfef45", 3.5, 7, 2),  # Lime
+#     ("#3cb44b", 3.5, 7, 2),  # Green
+#     ("#aaffc3", 3.5, 7, 2),  # Mint
+#     ("#469990", 3.5, 7, 2),  # Teal
+#     ("#42d4f4", 3.5, 7, 2),  # Cyan
+#     ("#4363d8", 3.5, 7, 2),  # Blue
+#     ("#000075", 3.5, 7, 2),  # Navy
+#     ("#911eb4", 3.5, 7, 2),  # Purple
+#     ("#f032e6", 3.5, 7, 2),  # Magenta
+#     ("#a9a9a9", 3.5, 7, 2),  # Grey
+#     ("#000000", 3.5, 7, 2),  # Nero
+#     ("#717070", 1.5),  # Grigio
+# ]
+
+# plt.figure(figsize=(1.17, 0.9))
+# plt.subplots_adjust(right=0.96)
+# plt.xlabel('eV')
+# plt.rc('axes', linewidth=1.5, labelcolor='#000000')
+# plt.rc('ytick', labelcolor='#000000')
+# plt.rc('xtick', labelcolor='#000000')
+# plt.grid(True, axis='both', which='both', linewidth=3, linestyle='-', color='#717070')
+
+# data_files = [
+#     ("GrapheneLayerSmear-k1-1-Dos-0.1-0.02.dat", [
+#         ("py", 43), ("pz", 44), ("px", 48), ("d-2", 50), ("d-1", 51),
+#         ("d0", 52), ("d+1", 54), ("d+2", 55), ("tot", 57), ("s", 40)
+#     ]),
+# ]
+
+# for data_file, styles in data_files:
+#     data = plt.loadtxt(data_file)
+#     for i, (label, linestyle) in enumerate(styles):
+#         color, linewidth, pointtype, pointsize = linestyles[linestyle - 40]
+#         plt.plot(data[:, 0], data[:, i + 1], label=label, color=color, linewidth=linewidth)
+
+# plt.legend(loc='center left', bbox_to_anchor=(1.03, 0.5), prop={'size': 'xx-small'}, frameon=False)
+# plt.savefig('m0.tex', bbox_inches='tight')
+
+# dpi = 600
+
+# # Save as PNG
+# plt.savefig('m0.png', dpi=dpi, bbox_inches='tight')
+
+# # Save as PDF
+# plt.savefig('m0.pdf', dpi=dpi, bbox_inches='tight')
