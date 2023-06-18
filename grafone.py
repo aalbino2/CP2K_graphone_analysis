@@ -16,10 +16,12 @@ import re
 import sys
 import shutil
 import subprocess
+from glob import glob
 from typing import List, Tuple, Dict  # , Union
 import numpy as np
 import click
 # import ase
+import matplotlib.pyplot as plt
 
 SCRIPT1 = "gCp2kMergeDos_New.sh"
 SCRIPT2 = "g_cp2k_dos_2023.py"
@@ -135,15 +137,16 @@ def extract_mulliken(cp2k_output_file: str, xyz_file: str, last_step_no: int, at
 
     pattern1 = f"OPTIMIZATION STEP:\\s*{last_step_no}(.*?)Informations at step =\\s*{last_step_no}"  # GEO_OPT / CELL_OPT
     pattern2 = f"SCF WAVEFUNCTION OPTIMIZATION(.*?)\\s*Informations at step =\\s*{last_step_no}"  # one-step GEO_OPT / CELL_OPT
-    pattern4 = r"SCF WAVEFUNCTION OPTIMIZATION.*?ENERGY\| Total FORCE_EVAL \( QS \) energy \(a\.u\.\):" # ENERGY_FORCE
+    pattern4 = r"SCF WAVEFUNCTION OPTIMIZATION.*?ENERGY\| Total FORCE_EVAL \( QS \) energy \(a\.u\.\):"  # ENERGY_FORCE
 
     with open(cp2k_output_file, 'r', encoding='utf8') as file:
         rks = re.search(r"DFT\| Spin restricted Kohn-Sham \(RKS\) calculation", file.read())
         file.seek(0)
         uks = re.search(r"DFT\| Spin unrestricted \(spin-polarized\) Kohn-Sham calculation", file.read())
         if rks and not uks:
-            print("\n\n the calculation is RKS! No spin Mulliken file printed\n\n")
+            sys.stdout.write("\n\n the calculation is RKS! No spin Mulliken file printed\n\n")
         elif uks and not rks:
+            sys.stdout.write("\n\n the calculation is UKS! Spin Mulliken file will be printed\n\n")
             file.seek(0)
             file_chunk = re.findall(pattern4, file.read(), re.DOTALL)
             match_found = False
@@ -350,6 +353,8 @@ def validate_files(cp2k_output_filename, cp2k_restart_filename):  # -> str:
         sys.stdout.write('Restart and Output file have discordant info')
         sys.stdout.write(f'(last step is no. {restart_step_no} and no. {last_step_no}, respectively)\n')
         sys.stdout.write('!!! !!! !!! !!!\n\n')
+    else:
+        sys.stdout.write('Restart and Output file have same last step index')
     opt_xyz_file = f"{cp2k_restart_file.split('.restart')[0]}_OPT.xyz"
     extract_optimized_geo(cp2k_restart_file, "&COORD", atoms_number, opt_xyz_file)
     extract_mulliken(cp2k_output_file, opt_xyz_file, last_step_no, atoms_number)
@@ -388,8 +393,8 @@ def g_cp2k_merge_dos() -> dict:
                 found_files['beta'].append(clean_filename)
             shutil.copyfile(os.path.join(CWD, file), os.path.join(NEW_DIR, clean_filename))
             sys.stdout.write(f" -> copied {clean_filename} in \n {NEW_DIR_NAME} folder \n")
-        found_files['alpha'].sort()
-        found_files['beta'].sort()
+        # found_files['alpha'].sort()
+        # found_files['beta'].sort()
     sys.stdout.write(f"------ START {SCRIPT1} ------\n")
     # shutil.copyfile(SCRIPT1, os.path.join(NEW_DIR, SCRIPT1))
     subprocess.run(os.path.join(SCRIPT_DIR, SCRIPT1), shell=True, cwd=NEW_DIR, check=True)
@@ -399,7 +404,34 @@ def g_cp2k_merge_dos() -> dict:
             suffix = re.search(restricted_suffix, file).group(0)
             clean_filename = file.split(suffix)[0].replace('-', '') + suffix
             found_files['merged'].append(clean_filename)
-    found_files['merged'].sort()
+    # found_files['merged'].sort()
+    return found_files
+
+
+def build_atomkind_dict():
+    found_files: Dict[str, List[str]] = {'alpha': [], 'beta': [], 'merged': [], 'kind': []}
+    unrestricted_suffix_dat = re.compile('-ALPHA_k[0-9]{1}-[0-9]{1}-Dos-|-BETA_k[0-9]{1}-[0-9]{1}-Dos-')
+    restricted_suffix_dat = re.compile('-k[0-9]{1}-[0-9]{1}-Dos-')
+    unrestricted_suffix_pdos = re.compile('-ALPHA_k[0-9]{1}-[0-9]{1}.pdos|-BETA_k[0-9]{1}-[0-9]{1}.pdos')
+    for file_dat in [f for f in os.listdir(NEW_DIR) if os.path.isfile(os.path.join(NEW_DIR, f))]:
+        for file_pdos in [f for f in os.listdir(NEW_DIR) if os.path.isfile(os.path.join(NEW_DIR, f))]:
+            match_dat = re.search(unrestricted_suffix_dat, file_dat)
+            match_pdos = re.search(unrestricted_suffix_pdos, file_pdos)
+            if match_dat and match_pdos \
+                and file_pdos.replace('.pdos', '') == file_dat.split('-Dos-')[0]:
+                if '-ALPHA_k' in file_dat:
+                    found_files['alpha'].append(file_dat)
+                    with open(os.path.join(NEW_DIR, file_pdos), 'r', encoding='utf8') as alpha_file:
+                        line = alpha_file.readline()  # line = file.readlines()[0]
+                        detected_kind = line.split('atomic kind')[1].split('at iteration')[0].strip()
+                        found_files['kind'].append(detected_kind)
+                elif '-BETA_k' in file_dat:
+                    found_files['beta'].append(file_dat)
+            if re.search(restricted_suffix_dat, file_dat):
+                found_files['merged'].append(file_dat)
+    print('KAIOKKEN')
+    print(found_files)
+
     return found_files
 
 
@@ -438,6 +470,78 @@ def check_fermi_energy(unrestricted_files: Dict[str, List[str]]) -> None:
     sys.stdout.write("------ END check_fermi_energy ------\n")
 
 
+def plot_data(atomkind_files):
+
+    for index, atomkind in enumerate(atomkind_files['kind']):
+        data_alpha = np.loadtxt(os.path.join(NEW_DIR, atomkind_files['alpha'][index]))
+        data_beta = np.loadtxt(os.path.join(NEW_DIR, atomkind_files['beta'][index]))
+        # Create the figure and axes objects
+        fig = plt.figure(figsize=(8, 6))
+        ax = fig.add_subplot(111)
+        # Set the axis labels and title
+        ax.set_xlabel('X')
+        ax.set_ylabel('Y')
+        ax.set_title('Plot with Matplotlib')
+        # Customize the tick marks and grid lines
+        ax.tick_params(axis='both', which='both', direction='in', bottom=True, top=True, left=True, right=True)
+        ax.grid(True, linestyle='--', linewidth=0.5, alpha=0.7)
+        # Add a legend
+        ax.legend(bbox_to_anchor=(1.02, 1), loc='upper left', borderaxespad=0., handlelength=0.5)
+        dpi = 600
+        # Plot the data
+        for orbital in range(1, data_alpha.shape[1]):
+            ax.plot(data_alpha[:, 0], data_alpha[:, orbital], linestyle='-', color='blue', label='Data')
+        for orbital in range(1, data_beta.shape[1]):
+            ax.plot(data_beta[:, 0], -data_beta[:, orbital], linestyle='-', color='blue', label='Data')
+        # Save as PNG
+        fig.savefig(f"{os.path.join(NEW_DIR, atomkind_files['alpha'][index]).replace('ALPHA','BS')}.png", dpi=dpi, bbox_inches='tight')
+        plt.close(fig)
+
+    for index, atomkind in enumerate(atomkind_files['kind']):
+        data = np.loadtxt(os.path.join(NEW_DIR, atomkind_files['merged'][index]))
+        # Create the figure and axes objects
+        fig = plt.figure(figsize=(8, 6))
+        ax = fig.add_subplot(111)
+        # Set the axis labels and title
+        ax.set_xlabel('X')
+        ax.set_ylabel('Y')
+        ax.set_title('Plot with Matplotlib')
+        # Customize the tick marks and grid lines
+        ax.tick_params(axis='both', which='both', direction='in', bottom=True, top=True, left=True, right=True)
+        ax.grid(True, linestyle='--', linewidth=0.5, alpha=0.7)
+        # Add a legend
+        ax.legend(bbox_to_anchor=(1.02, 1), loc='upper left', borderaxespad=0., handlelength=0.5)
+        dpi = 600
+        # Plot the data
+        for orbital in range(1, data.shape[1]):
+            ax.plot(data[:, 0], data[:, orbital], linestyle='-', color='blue', label='Data')
+        # Save as PNG
+        fig.savefig(f"{os.path.join(NEW_DIR, atomkind_files['merged'][index])}.png", dpi=dpi, bbox_inches='tight')
+        plt.close(fig)
+
+    # linestyles = [
+    #     ("#800000", 3.5, 7, 2),  # Maroon
+    #     ("#9A6324", 3.5, 7, 2),  # Brown
+    #     ("#808000", 3.5, 7, 2),  # Olive
+    #     ("#e6194B", 3.5, 7, 2),  # Red
+    #     ("#f58231", 3.5, 7, 2),  # Orange
+    #     ("#ffd8b1", 3.5, 7, 2),  # Apricot
+    #     ("#ffe119", 3.5, 7, 2),  # Yellow
+    #     ("#bfef45", 3.5, 7, 2),  # Lime
+    #     ("#3cb44b", 3.5, 7, 2),  # Green
+    #     ("#aaffc3", 3.5, 7, 2),  # Mint
+    #     ("#469990", 3.5, 7, 2),  # Teal
+    #     ("#42d4f4", 3.5, 7, 2),  # Cyan
+    #     ("#4363d8", 3.5, 7, 2),  # Blue
+    #     ("#000075", 3.5, 7, 2),  # Navy
+    #     ("#911eb4", 3.5, 7, 2),  # Purple
+    #     ("#f032e6", 3.5, 7, 2),  # Magenta
+    #     ("#a9a9a9", 3.5, 7, 2),  # Grey
+    #     ("#000000", 3.5, 7, 2),  # Nero
+    #     ("#717070", 1.5),  # Grigio
+    # ]
+
+
 @click.command()
 @click.option(
     '-s', '--sigma',
@@ -453,13 +557,18 @@ def check_fermi_energy(unrestricted_files: Dict[str, List[str]]) -> None:
 )
 @click.option(
     '-o', '--output',
-    help='Output filename. The file were the last optimization step is stored.'
+    help='Output filename. The file where the last optimization step is stored.'
 )
 @click.option(
     '-r', '--restart',
-    help='Restart filename. The file were the last optimization step is stored.'
+    help='Restart filename. The file where the last optimization step is stored.'
 )
-def launch_tool(sigma, filename, output, restart):
+@click.option(
+    '-d', '--dos-process',
+    is_flag=True,
+    help='Go through the DOS processing only if the flag is present.'
+)
+def launch_tool(sigma, filename, output, dos_process, restart):
     '''
     Main function that launches the tools.
     '''
@@ -467,26 +576,30 @@ def launch_tool(sigma, filename, output, restart):
         validate_files(output, restart)
     else:
         raise ValueError("Either output file or restart file were not provided via -o and -r args")
-    files = g_cp2k_merge_dos()
-    check_fermi_energy(files)
+    atomkind_pdos_files = g_cp2k_merge_dos()
+    check_fermi_energy(atomkind_pdos_files)
 
-    sys.stdout.write(f"------ START {SCRIPT2} ------\n")
-    # shutil.copyfile(SCRIPT2, os.path.join(NEW_DIR, SCRIPT2))
-    if filename:
-        subprocess.run(f"python {os.path.join(SCRIPT_DIR, SCRIPT2)} -s {sigma} -f {filename[0]}", cwd=NEW_DIR,
-                       check=True, text=True, shell=True)
+    if dos_process:
+        sys.stdout.write(f"------ START {SCRIPT2} ------\n")
+        # shutil.copyfile(SCRIPT2, os.path.join(NEW_DIR, SCRIPT2))
+        if filename:
+            subprocess.run(f"python {os.path.join(SCRIPT_DIR, SCRIPT2)} -s {sigma} -f {filename[0]}", cwd=NEW_DIR,
+                           check=True, text=True, shell=True)
+        else:
+            subprocess.run(f"python {os.path.join(SCRIPT_DIR, SCRIPT2)} -s {sigma}", cwd=NEW_DIR,
+                           check=True, text=True, shell=True)
+        sys.stdout.write(f"------ END {SCRIPT2} ------\n")
     else:
-        subprocess.run(f"python {os.path.join(SCRIPT_DIR, SCRIPT2)} -s {sigma}", cwd=NEW_DIR,
-                       check=True, text=True, shell=True)
-    sys.stdout.write(f"------ END {SCRIPT2} ------\n")
+        sys.stdout.write(f"------ {SCRIPT2} was skipped ------\n")
+
+    sys.stdout.write("------ START PLOTTING ------\n")
+    atomkind_dat_files = build_atomkind_dict()
+    plot_data(atomkind_dat_files)
+    sys.stdout.write("------  END PLOTTING  ------\n")
 
 
 if __name__ == '__main__':
     launch_tool().parse()  # pylint: disable=no-value-for-parameter
-
-
-
-
 
 # import matplotlib.pyplot as plt
 

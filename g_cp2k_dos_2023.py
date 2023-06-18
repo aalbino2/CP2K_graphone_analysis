@@ -12,7 +12,6 @@ from pylab import loadtxt
 import numpy as np
 # from scipy.stats import norm
 import click
-import os
 
 HA2EV = 27.211  # Hartree to eV
 
