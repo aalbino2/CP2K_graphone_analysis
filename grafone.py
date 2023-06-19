@@ -476,48 +476,47 @@ def check_fermi_energy(unrestricted_files: Dict[str, List[str]]) -> None:
 
 def plot_data(atomkind_files):
 
-
     dpi = 600
 
     linestyles_alpha = [
         "skipped",
-    "#000000",
-    "#8F0D0D",  # Red
-    "#B52626",
-    "#D34747",
-    "#FF8E00",
-    "#FF9F00",  # Yellow
-    "#FFAE00",
-    "#FFBC00",
-    "#FFCA00",
-    "#1B9A00",
-    "#1B9A00",
-    "#1B9A00",
-    "#1B9A00",
-    "#1B9A00",
-    "#1B9A00",
-    "#1B9A00",
-    "#000000"
+        "#000000",
+        "#8F0D0D",  # Red
+        "#B52626",
+        "#D34747",
+        "#FF8E00",
+        "#FF9F00",  # Yellow
+        "#FFAE00",
+        "#FFBC00",
+        "#FFCA00",
+        "#1B9A00",
+        "#1B9A00",
+        "#1B9A00",
+        "#1B9A00",
+        "#1B9A00",
+        "#1B9A00",
+        "#1B9A00",
+        "#000000"
     ]
     linestyles_beta = [
         "skipped",
-    "#000000",
-    "#0014D3",  # Red
-    "#0029D1",
-    "#003BD0",
-    "#0070CC",
-    "#0084CB",  # Yellow
-    "#009DC9",
-    "#00BEC7",
-    "#00CAAE",
-    "#1B9A00",
-    "#1B9A00",
-    "#1B9A00",
-    "#1B9A00",
-    "#1B9A00",
-    "#1B9A00",
-    "#1B9A00",
-    "#000000"
+        "#000000",
+        "#0014D3",  # Red
+        "#0029D1",
+        "#003BD0",
+        "#0070CC",
+        "#0084CB",  # Yellow
+        "#009DC9",
+        "#00BEC7",
+        "#00CAAE",
+        "#1B9A00",
+        "#1B9A00",
+        "#1B9A00",
+        "#1B9A00",
+        "#1B9A00",
+        "#1B9A00",
+        "#1B9A00",
+        "#000000"
     ]
 
     data_alpha_c1 = None
@@ -561,28 +560,28 @@ def plot_data(atomkind_files):
         data_beta = np.loadtxt(os.path.join(NEW_DIR, atomkind_files['beta'][index]))
         # Create the figure and axes objects
         fig = plt.figure(figsize=(8, 6))
-        ax = fig.add_subplot(111)
+        alpha_beta_plot = fig.add_subplot(111)
         plt.xlim(-7.5, 7.5)
         # Set the axis labels and title
-        ax.set_xlabel('Energy (eV)')
-        ax.set_ylabel('Pdos (a. u.)')
-        ax.set_title(f"Pdos for atom kind {atomkind}")
+        alpha_beta_plot.set_xlabel('Energy (eV)')
+        alpha_beta_plot.set_ylabel('Pdos (a. u.)')
+        alpha_beta_plot.set_title(f"Pdos for atom kind {atomkind}")
         # Customize the tick marks and grid lines
-        ax.tick_params(axis='both', which='both', direction='in', bottom=True, top=True, left=True, right=True)
-        ax.grid(True, linestyle='--', linewidth=0.5, alpha=0.7)
+        alpha_beta_plot.tick_params(axis='both', which='both', direction='in', bottom=True, top=True, left=True, right=True)
+        alpha_beta_plot.grid(True, linestyle='--', linewidth=0.5, alpha=0.7)
         # Plot the data
         for orbital in range(1, data_alpha.shape[1] - 1):
             red = int(linestyles_alpha[orbital][1:3], 16) / 255
             green = int(linestyles_alpha[orbital][3:5], 16) / 255
             blue = int(linestyles_alpha[orbital][5:7], 16) / 255
-            ax.plot(data_alpha[:, 0], data_alpha[:, orbital], linestyle='-', linewidth=1, color=(red, green, blue), label=f"{atomkind_files['orbitals'][index][orbital]}")
+            alpha_beta_plot.plot(data_alpha[:, 0], data_alpha[:, orbital], linestyle='-', linewidth=1, color=(red, green, blue), label=f"{atomkind_files['orbitals'][index][orbital]}")
         for orbital in range(1, data_beta.shape[1] - 1):
             red = int(linestyles_beta[orbital][1:3], 16) / 255
             green = int(linestyles_beta[orbital][3:5], 16) / 255
             blue = int(linestyles_beta[orbital][5:7], 16) / 255
-            ax.plot(data_beta[:, 0], -data_beta[:, orbital], linestyle='-', linewidth=1, color=(red, green, blue), label=f"{atomkind_files['orbitals'][index][orbital]}")
+            alpha_beta_plot.plot(data_beta[:, 0], -data_beta[:, orbital], linestyle='-', linewidth=1, color=(red, green, blue), label=f"{atomkind_files['orbitals'][index][orbital]}")
         # Add a legend
-        ax.legend(bbox_to_anchor=(1.02, 1), loc='upper left', borderaxespad=0., handlelength=0.5)
+        alpha_beta_plot.legend(bbox_to_anchor=(1.02, 1), loc='upper left', borderaxespad=0., handlelength=0.5)
         # Save as PNG
         fig.savefig(f"{os.path.join(NEW_DIR, atomkind_files['alpha'][index]).replace('ALPHA','alpha-beta')}.png", dpi=dpi, bbox_inches='tight')
         plt.close(fig)
@@ -591,22 +590,23 @@ def plot_data(atomkind_files):
         data = np.loadtxt(os.path.join(NEW_DIR, atomkind_files['merged'][index]))
         # Create the figure and axes objects
         fig = plt.figure(figsize=(8, 6))
-        ax = fig.add_subplot(111)
+        merged_plot = fig.add_subplot(111)
+        plt.xlim(-10, 10)
         # Set the axis labels and title
-        ax.set_xlabel('Energy (eV)')
-        ax.set_ylabel('Pdos (a. u.)')
-        ax.set_title(f"Pdos for atom kind {atomkind}")
+        merged_plot.set_xlabel('Energy (eV)')
+        merged_plot.set_ylabel('Pdos (a. u.)')
+        merged_plot.set_title(f"Pdos for atom kind {atomkind}")
         # Customize the tick marks and grid lines
-        ax.tick_params(axis='both', which='both', direction='in', bottom=True, top=True, left=True, right=True)
-        ax.grid(True, linestyle='--', linewidth=0.5, alpha=0.7)
+        merged_plot.tick_params(axis='both', which='both', direction='in', bottom=True, top=True, left=True, right=True)
+        merged_plot.grid(True, linestyle='--', linewidth=0.5, alpha=0.7)
         # Plot the data
         for orbital in range(1, data.shape[1]):
             red = int(linestyles_alpha[orbital][1:3], 16) / 255
             green = int(linestyles_alpha[orbital][3:5], 16) / 255
             blue = int(linestyles_alpha[orbital][5:7], 16) / 255
-            ax.plot(data[:, 0], data[:, orbital], linestyle='-', linewidth=1, color=(red, green, blue), label=f"{atomkind_files['orbitals'][index][orbital]}")
+            merged_plot.plot(data[:, 0], data[:, orbital], linestyle='-', linewidth=1, color=(red, green, blue), label=f"{atomkind_files['orbitals'][index][orbital]}")
         # Add a legend
-        ax.legend(bbox_to_anchor=(1.02, 1), loc='upper left', borderaxespad=0., handlelength=0.5)
+        merged_plot.legend(bbox_to_anchor=(1.02, 1), loc='upper left', borderaxespad=0., handlelength=0.5)
         # Save as PNG
         fig.savefig(f"{os.path.join(NEW_DIR, atomkind_files['merged'][index])}.png", dpi=dpi, bbox_inches='tight')
         plt.close(fig)
@@ -646,6 +646,7 @@ def plot_data(atomkind_files):
         # Create the figure and axes objects
         fig = plt.figure(figsize=(8, 6))
         bs_plot_merged = fig.add_subplot(111)
+        plt.xlim(-10, 10)
         # Set the axis labels and title
         bs_plot_merged.set_xlabel('Energy (eV)')
         bs_plot_merged.set_ylabel('Pdos (a. u.)')
