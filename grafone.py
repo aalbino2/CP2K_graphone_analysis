@@ -409,29 +409,33 @@ def g_cp2k_merge_dos() -> dict:
 
 
 def build_atomkind_dict():
-    found_files: Dict[str, List[str]] = {'alpha': [], 'beta': [], 'merged': [], 'kind': []}
+    found_files: Dict[str, List[str]] = {'alpha': [], 'beta': [], 'merged': [], 'kind': [], 'orbitals': []}
     unrestricted_suffix_dat = re.compile('-ALPHA_k[0-9]{1}-[0-9]{1}-Dos-|-BETA_k[0-9]{1}-[0-9]{1}-Dos-')
     restricted_suffix_dat = re.compile('-k[0-9]{1}-[0-9]{1}-Dos-')
     unrestricted_suffix_pdos = re.compile('-ALPHA_k[0-9]{1}-[0-9]{1}.pdos|-BETA_k[0-9]{1}-[0-9]{1}.pdos')
+    restricted_suffix_pdos = re.compile('-k[0-9]{1}-[0-9]{1}.pdos')
     for file_dat in [f for f in os.listdir(NEW_DIR) if os.path.isfile(os.path.join(NEW_DIR, f))]:
         for file_pdos in [f for f in os.listdir(NEW_DIR) if os.path.isfile(os.path.join(NEW_DIR, f))]:
-            match_dat = re.search(unrestricted_suffix_dat, file_dat)
-            match_pdos = re.search(unrestricted_suffix_pdos, file_pdos)
-            if match_dat and match_pdos \
+            if re.search(unrestricted_suffix_dat, file_dat) \
+                and re.search(unrestricted_suffix_pdos, file_pdos) \
                 and file_pdos.replace('.pdos', '') == file_dat.split('-Dos-')[0]:
                 if '-ALPHA_k' in file_dat:
                     found_files['alpha'].append(file_dat)
                     with open(os.path.join(NEW_DIR, file_pdos), 'r', encoding='utf8') as alpha_file:
-                        line = alpha_file.readline()  # line = file.readlines()[0]
+                        line = alpha_file.readline()
                         detected_kind = line.split('atomic kind')[1].split('at iteration')[0].strip()
                         found_files['kind'].append(detected_kind)
+                        line = alpha_file.readline()
+                        detected_orbitals = ['Energy']
+                        detected_orbitals += line.split('Occupation')[1].split()
+                        detected_orbitals += ['Tot']
+                        found_files['orbitals'].append(detected_orbitals)
                 elif '-BETA_k' in file_dat:
                     found_files['beta'].append(file_dat)
-            if re.search(restricted_suffix_dat, file_dat):
+            if re.search(restricted_suffix_dat, file_dat) \
+                and re.search(restricted_suffix_pdos, file_pdos) \
+                and file_pdos.replace('.pdos', '') == file_dat.split('-Dos-')[0]:
                 found_files['merged'].append(file_dat)
-    print('KAIOKKEN')
-    print(found_files)
-
     return found_files
 
 
@@ -472,29 +476,115 @@ def check_fermi_energy(unrestricted_files: Dict[str, List[str]]) -> None:
 
 def plot_data(atomkind_files):
 
+
+    dpi = 600
+
+    linestyles_alpha = [
+        "skipped",
+    "#000000",
+    "#8F0D0D",  # Red
+    "#B52626",
+    "#D34747",
+    "#FF8E00",
+    "#FF9F00",  # Yellow
+    "#FFAE00",
+    "#FFBC00",
+    "#FFCA00",
+    "#1B9A00",
+    "#1B9A00",
+    "#1B9A00",
+    "#1B9A00",
+    "#1B9A00",
+    "#1B9A00",
+    "#1B9A00",
+    "#000000"
+    ]
+    linestyles_beta = [
+        "skipped",
+    "#000000",
+    "#0014D3",  # Red
+    "#0029D1",
+    "#003BD0",
+    "#0070CC",
+    "#0084CB",  # Yellow
+    "#009DC9",
+    "#00BEC7",
+    "#00CAAE",
+    "#1B9A00",
+    "#1B9A00",
+    "#1B9A00",
+    "#1B9A00",
+    "#1B9A00",
+    "#1B9A00",
+    "#1B9A00",
+    "#000000"
+    ]
+
+    data_alpha_c1 = None
+    data_alpha_c2 = None
+    data_alpha_bs = None
+
+    for index, atomkind in enumerate(atomkind_files['kind']):
+        if atomkind == 'C':
+            data_alpha_c = np.loadtxt(os.path.join(NEW_DIR, atomkind_files['alpha'][index]))
+            data_beta_c = np.loadtxt(os.path.join(NEW_DIR, atomkind_files['beta'][index]))
+            data_c = np.loadtxt(os.path.join(NEW_DIR, atomkind_files['merged'][index]))
+        if atomkind == 'C1':
+            data_alpha_c1 = np.loadtxt(os.path.join(NEW_DIR, atomkind_files['alpha'][index]))
+            data_beta_c1 = np.loadtxt(os.path.join(NEW_DIR, atomkind_files['beta'][index]))
+            data_c1 = np.loadtxt(os.path.join(NEW_DIR, atomkind_files['merged'][index]))
+        if atomkind == 'C2':
+            data_alpha_c2 = np.loadtxt(os.path.join(NEW_DIR, atomkind_files['alpha'][index]))
+            data_beta_c2 = np.loadtxt(os.path.join(NEW_DIR, atomkind_files['beta'][index]))
+            data_c2 = np.loadtxt(os.path.join(NEW_DIR, atomkind_files['merged'][index]))
+    if np.any(data_alpha_c1) and not np.any(data_alpha_c2):
+        alpha_bs = data_alpha_c[:, 1:] + data_alpha_c1[:, 1:]
+        beta_bs = data_beta_c[:, 1:] + data_beta_c1[:, 1:]
+        bs = data_c[:, 1:] + data_c1[:, 1:]
+        data_alpha_bs = np.concatenate((data_alpha_c[:, 0].reshape(-1, 1), alpha_bs), axis=1)
+        data_beta_bs = np.concatenate((data_beta_c[:, 0].reshape(-1, 1), beta_bs), axis=1)
+        data_bs = np.concatenate((data_c[:, 0].reshape(-1, 1), bs), axis=1)
+    if not np.any(data_alpha_c1) and np.any(data_alpha_c2):
+        data_alpha_bs = data_alpha_c[:, 1:] + data_alpha_c2[:, 1:]
+        data_beta_bs = data_beta_c[:, 1:] + data_beta_c2[:, 1:]
+        data_bs = data_c[:, 1:] + data_c2[:, 1:]
+    if np.any(data_alpha_c1) and np.any(data_alpha_c2):
+        alpha_bs = data_alpha_c[:, 1:] + data_alpha_c1[:, 1:] + data_alpha_c2[:, 1:]
+        beta_bs = data_beta_c[:, 1:] + data_beta_c1[:, 1:] + data_beta_c2[:, 1:]
+        bs = data_c[:, 1:] + data_c1[:, 1:] + data_c2[:, 1:]
+        data_alpha_bs = np.concatenate((data_alpha_c[:, 0].reshape(-1, 1), alpha_bs), axis=1)
+        data_beta_bs = np.concatenate((data_beta_c[:, 0].reshape(-1, 1), beta_bs), axis=1)
+        data_bs = np.concatenate((data_c[:, 0].reshape(-1, 1), bs), axis=1)
+
     for index, atomkind in enumerate(atomkind_files['kind']):
         data_alpha = np.loadtxt(os.path.join(NEW_DIR, atomkind_files['alpha'][index]))
         data_beta = np.loadtxt(os.path.join(NEW_DIR, atomkind_files['beta'][index]))
         # Create the figure and axes objects
         fig = plt.figure(figsize=(8, 6))
         ax = fig.add_subplot(111)
+        plt.xlim(-7.5, 7.5)
         # Set the axis labels and title
-        ax.set_xlabel('X')
-        ax.set_ylabel('Y')
-        ax.set_title('Plot with Matplotlib')
+        ax.set_xlabel('Energy (eV)')
+        ax.set_ylabel('Pdos (a. u.)')
+        ax.set_title(f"Pdos for atom kind {atomkind}")
         # Customize the tick marks and grid lines
         ax.tick_params(axis='both', which='both', direction='in', bottom=True, top=True, left=True, right=True)
         ax.grid(True, linestyle='--', linewidth=0.5, alpha=0.7)
+        # Plot the data
+        for orbital in range(1, data_alpha.shape[1] - 1):
+            red = int(linestyles_alpha[orbital][1:3], 16) / 255
+            green = int(linestyles_alpha[orbital][3:5], 16) / 255
+            blue = int(linestyles_alpha[orbital][5:7], 16) / 255
+            ax.plot(data_alpha[:, 0], data_alpha[:, orbital], linestyle='-', linewidth=1, color=(red, green, blue), label=f"{atomkind_files['orbitals'][index][orbital]}")
+        for orbital in range(1, data_beta.shape[1] - 1):
+            red = int(linestyles_beta[orbital][1:3], 16) / 255
+            green = int(linestyles_beta[orbital][3:5], 16) / 255
+            blue = int(linestyles_beta[orbital][5:7], 16) / 255
+            ax.plot(data_beta[:, 0], -data_beta[:, orbital], linestyle='-', linewidth=1, color=(red, green, blue), label=f"{atomkind_files['orbitals'][index][orbital]}")
         # Add a legend
         ax.legend(bbox_to_anchor=(1.02, 1), loc='upper left', borderaxespad=0., handlelength=0.5)
-        dpi = 600
-        # Plot the data
-        for orbital in range(1, data_alpha.shape[1]):
-            ax.plot(data_alpha[:, 0], data_alpha[:, orbital], linestyle='-', color='blue', label='Data')
-        for orbital in range(1, data_beta.shape[1]):
-            ax.plot(data_beta[:, 0], -data_beta[:, orbital], linestyle='-', color='blue', label='Data')
         # Save as PNG
-        fig.savefig(f"{os.path.join(NEW_DIR, atomkind_files['alpha'][index]).replace('ALPHA','BS')}.png", dpi=dpi, bbox_inches='tight')
+        fig.savefig(f"{os.path.join(NEW_DIR, atomkind_files['alpha'][index]).replace('ALPHA','alpha-beta')}.png", dpi=dpi, bbox_inches='tight')
         plt.close(fig)
 
     for index, atomkind in enumerate(atomkind_files['kind']):
@@ -503,43 +593,77 @@ def plot_data(atomkind_files):
         fig = plt.figure(figsize=(8, 6))
         ax = fig.add_subplot(111)
         # Set the axis labels and title
-        ax.set_xlabel('X')
-        ax.set_ylabel('Y')
-        ax.set_title('Plot with Matplotlib')
+        ax.set_xlabel('Energy (eV)')
+        ax.set_ylabel('Pdos (a. u.)')
+        ax.set_title(f"Pdos for atom kind {atomkind}")
         # Customize the tick marks and grid lines
         ax.tick_params(axis='both', which='both', direction='in', bottom=True, top=True, left=True, right=True)
         ax.grid(True, linestyle='--', linewidth=0.5, alpha=0.7)
-        # Add a legend
-        ax.legend(bbox_to_anchor=(1.02, 1), loc='upper left', borderaxespad=0., handlelength=0.5)
-        dpi = 600
         # Plot the data
         for orbital in range(1, data.shape[1]):
-            ax.plot(data[:, 0], data[:, orbital], linestyle='-', color='blue', label='Data')
+            red = int(linestyles_alpha[orbital][1:3], 16) / 255
+            green = int(linestyles_alpha[orbital][3:5], 16) / 255
+            blue = int(linestyles_alpha[orbital][5:7], 16) / 255
+            ax.plot(data[:, 0], data[:, orbital], linestyle='-', linewidth=1, color=(red, green, blue), label=f"{atomkind_files['orbitals'][index][orbital]}")
+        # Add a legend
+        ax.legend(bbox_to_anchor=(1.02, 1), loc='upper left', borderaxespad=0., handlelength=0.5)
         # Save as PNG
         fig.savefig(f"{os.path.join(NEW_DIR, atomkind_files['merged'][index])}.png", dpi=dpi, bbox_inches='tight')
         plt.close(fig)
 
-    # linestyles = [
-    #     ("#800000", 3.5, 7, 2),  # Maroon
-    #     ("#9A6324", 3.5, 7, 2),  # Brown
-    #     ("#808000", 3.5, 7, 2),  # Olive
-    #     ("#e6194B", 3.5, 7, 2),  # Red
-    #     ("#f58231", 3.5, 7, 2),  # Orange
-    #     ("#ffd8b1", 3.5, 7, 2),  # Apricot
-    #     ("#ffe119", 3.5, 7, 2),  # Yellow
-    #     ("#bfef45", 3.5, 7, 2),  # Lime
-    #     ("#3cb44b", 3.5, 7, 2),  # Green
-    #     ("#aaffc3", 3.5, 7, 2),  # Mint
-    #     ("#469990", 3.5, 7, 2),  # Teal
-    #     ("#42d4f4", 3.5, 7, 2),  # Cyan
-    #     ("#4363d8", 3.5, 7, 2),  # Blue
-    #     ("#000075", 3.5, 7, 2),  # Navy
-    #     ("#911eb4", 3.5, 7, 2),  # Purple
-    #     ("#f032e6", 3.5, 7, 2),  # Magenta
-    #     ("#a9a9a9", 3.5, 7, 2),  # Grey
-    #     ("#000000", 3.5, 7, 2),  # Nero
-    #     ("#717070", 1.5),  # Grigio
-    # ]
+    if np.any(data_alpha_bs):
+        for index, atomkind in enumerate(atomkind_files['kind']):
+            if 'C' in atomkind:
+                carbon_index = index
+        # Create the figure and axes objects
+        fig = plt.figure(figsize=(8, 6))
+        bs_plot = fig.add_subplot(111)
+        plt.xlim(-7.5, 7.5)
+        # Set the axis labels and title
+        bs_plot.set_xlabel('Energy (eV)')
+        bs_plot.set_ylabel('Pdos (a. u.)')
+        bs_plot.set_title(f"Pdos for atom kind {atomkind} (BS)")
+        # Customize the tick marks and grid lines
+        bs_plot.tick_params(axis='both', which='both', direction='in', bottom=True, top=True, left=True, right=True)
+        bs_plot.grid(True, linestyle='--', linewidth=0.5, alpha=0.7)
+        # Plot the data
+        for orbital in range(1, data_alpha_bs.shape[1] - 1):
+            red = int(linestyles_alpha[orbital][1:3], 16) / 255
+            green = int(linestyles_alpha[orbital][3:5], 16) / 255
+            blue = int(linestyles_alpha[orbital][5:7], 16) / 255
+            bs_plot.plot(data_alpha_bs[:, 0], data_alpha_bs[:, orbital], linestyle='-', linewidth=1, color=(red, green, blue), label=f"{atomkind_files['orbitals'][carbon_index][orbital]}")
+        for orbital in range(1, data_beta_bs.shape[1] - 1):
+            red = int(linestyles_beta[orbital][1:3], 16) / 255
+            green = int(linestyles_beta[orbital][3:5], 16) / 255
+            blue = int(linestyles_beta[orbital][5:7], 16) / 255
+            bs_plot.plot(data_beta_bs[:, 0], -data_beta_bs[:, orbital], linestyle='-', linewidth=1, color=(red, green, blue), label=f"{atomkind_files['orbitals'][carbon_index][orbital]}")
+        # Add a legend
+        bs_plot.legend(bbox_to_anchor=(1.02, 1), loc='upper left', borderaxespad=0., handlelength=0.5)
+        # Save as PNG
+        fig.savefig(f"{os.path.join(NEW_DIR, atomkind_files['alpha'][carbon_index]).replace('ALPHA','')}_BS.png", dpi=dpi, bbox_inches='tight')
+        plt.close(fig)
+
+        # Create the figure and axes objects
+        fig = plt.figure(figsize=(8, 6))
+        bs_plot_merged = fig.add_subplot(111)
+        # Set the axis labels and title
+        bs_plot_merged.set_xlabel('Energy (eV)')
+        bs_plot_merged.set_ylabel('Pdos (a. u.)')
+        bs_plot_merged.set_title(f"Pdos for atom kind {atomkind}")
+        # Customize the tick marks and grid lines
+        bs_plot_merged.tick_params(axis='both', which='both', direction='in', bottom=True, top=True, left=True, right=True)
+        bs_plot_merged.grid(True, linestyle='--', linewidth=0.5, alpha=0.7)
+        # Plot the data
+        for orbital in range(1, data_bs.shape[1]):
+            red = int(linestyles_alpha[orbital][1:3], 16) / 255
+            green = int(linestyles_alpha[orbital][3:5], 16) / 255
+            blue = int(linestyles_alpha[orbital][5:7], 16) / 255
+            bs_plot_merged.plot(data_bs[:, 0], data_bs[:, orbital], linestyle='-', linewidth=1, color=(red, green, blue), label=f"{atomkind_files['orbitals'][carbon_index][orbital]}")
+        # Add a legend
+        bs_plot_merged.legend(bbox_to_anchor=(1.02, 1), loc='upper left', borderaxespad=0., handlelength=0.5)
+        # Save as PNG
+        fig.savefig(f"{os.path.join(NEW_DIR, atomkind_files['merged'][carbon_index])}_BS.png", dpi=dpi, bbox_inches='tight')
+        plt.close(fig)
 
 
 @click.command()
