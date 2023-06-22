@@ -5,18 +5,39 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "g_cp2k_dos.py",
+            "name": "g_cp2k_dos_2023.py",
             "type": "python",
             "request": "launch",
-            "program": "/home/andrea/Data/Uni/5_DOTTORATO/GRAFENE/ARTICOLO/CODE/1_python/files/g_cp2k_dos.py", // "${file}",
+            "program": "/home/andrea/Data/Uni/5_DOTTORATO/GRAFENE/CP2K_graphone_analysis/g_cp2k_dos_2023.py", // "${file}",
             "console": "integratedTerminal",
-            "justMyCode": true
-        }
+            "justMyCode": true,
+            "cwd": "/home/andrea/Data/Uni/5_DOTTORATO/GRAFENE/ARTICOLO/DATA/Graphone_@4Au_chair_AF",  // "${workspaceFolder}",
+            "args": [
+              "-f",
+              "GrafoneTRI4AuSmearAucellBSnp+64AF-BETA_k5-1.pdos"
+            ]
+        },
+        {
+            "name": "grafone.py",
+            "type": "python",
+            "request": "launch",
+            "program": "/home/andrea/Data/Uni/5_DOTTORATO/GRAFENE/CP2K_graphone_analysis/grafone.py", // "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "cwd": "/home/andrea/Data/Uni/5_DOTTORATO/GRAFENE/ARTICOLO/DATA/Graphone_@4Au_chair_AF",  // "${workspaceFolder}",
+            "args": [
+              "-o",
+              "GrafoneTRI4AuSmearAucell-BSnp+64_AF_DOS.out",
+              "-r",
+              "GrafoneTRI4AuSmearAucellBSnp+64AF-DOS.restart" // ,
+              // "-d"
+            ]
+        },
         {
             "name": "gCp2kDos_OLD.py",
             "type": "python",
             "request": "launch",
-            "program": "/home/andrea/Data/Uni/5_DOTTORATO/GRAFENE/ARTICOLO/CODE/1_python/files/gCp2kDos_OLD.py", // "${file}",
+            "program": "/home/andrea/Data/Uni/5_DOTTORATO/GRAFENE/CP2K_graphone_analysis/gCp2kDos_OLD.py", // "${file}",
             "console": "integratedTerminal",
             "justMyCode": true
         }

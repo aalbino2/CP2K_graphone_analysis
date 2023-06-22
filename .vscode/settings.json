@@ -24,5 +24,6 @@
         "--follow-imports=silent",
         "--no-strict-optional"
     ],
-    "python.linting.pylintEnabled": true
+    "python.linting.pylintEnabled": true,
+    "notebook.lineNumbers": "on"
 }

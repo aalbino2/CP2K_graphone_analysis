@@ -171,7 +171,7 @@ def launch_tool(filename, delta_energy, accuracy, sigma):
     if not filename:
         filename = glob('*.pdos')
     elif not len(filename) == len(glob('*.pdos')):
-        raise ValueError("\n\nThere are more .pdos files in the folder ! Consider to remove -f arg to grab all of them\n")
+        sys.stdout.write("\n! ! ! ! !\n! ! ! ! !\nThere are more .pdos files in the folder ! Consider to remove -f arg to grab all of them\n! ! ! ! !\n! ! ! ! !\n")
 
     for file in filename:
         compute_dos(file, delta_energy, sigma, accuracy)
