@@ -578,6 +578,8 @@ def plot_data(atomkind_files):
         labels = labels[1:-1]
         # Set the modified ticks and labels
         plt.xticks(ticks, labels)
+        plt.gca().set_yticklabels([], visible=False)
+
         # Set the axis labels and title
         alpha_beta_plot.set_xlabel('Energy (eV)')
         alpha_beta_plot.set_ylabel('Pdos (a. u.)')
@@ -624,6 +626,8 @@ def plot_data(atomkind_files):
         # labels = labels[1:-1]
         # # Set the modified ticks and labels
         # plt.xticks(ticks, labels)
+        plt.gca().set_yticklabels([], visible=False)
+
         # Set the axis labels and title
         merged_plot.set_xlabel('Energy (eV)')
         merged_plot.set_ylabel('Pdos (a. u.)')
@@ -660,6 +664,8 @@ def plot_data(atomkind_files):
         labels = labels[1:-1]
         # Set the modified ticks and labels
         plt.xticks(ticks, labels)
+        plt.gca().set_yticklabels([], visible=False)
+
         # Set the axis labels and title
         bs_plot.set_xlabel('Energy (eV)')
         bs_plot.set_ylabel('Pdos (a. u.)')
@@ -683,7 +689,7 @@ def plot_data(atomkind_files):
         # Add a legend
         bs_plot.legend(fontsize=6, bbox_to_anchor=(1.02, 1), loc='upper left', borderaxespad=0., handlelength=0.5)
         # Save as PNG
-        fig.savefig(f"{os.path.join(NEW_DIR, atomkind_files['alpha'][carbon_index]).replace('ALPHA','')}_BS.png", dpi=dpi, bbox_inches='tight')
+        fig.savefig(f"{os.path.join(NEW_DIR, atomkind_files['alpha'][carbon_index]).replace('ALPHA_','')}_BS.png", dpi=dpi, bbox_inches='tight')
         plt.clf()
         plt.close(fig)
 
@@ -698,10 +704,12 @@ def plot_data(atomkind_files):
         # labels = labels[1:-1]
         # # Set the modified ticks and labels
         # plt.xticks(ticks, labels)
-        # # Set the axis labels and title
+        plt.gca().set_yticklabels([], visible=False)
+
+        # Set the axis labels and title
         bs_plot_merged.set_xlabel('Energy (eV)')
         bs_plot_merged.set_ylabel('Pdos (a. u.)')
-        bs_plot_merged.set_title(f"Pdos for atom kind {atomkind}")
+        bs_plot_merged.set_title(f"Pdos for atom kind {atomkind_files['kind'][carbon_index]} (BS)")
         # Customize the tick marks and grid lines
         bs_plot_merged.tick_params(axis='both', which='both', direction='in', bottom=True, top=True, left=True, right=True)
         bs_plot_merged.grid(True, linestyle='--', linewidth=0.5, alpha=0.7)
@@ -715,7 +723,7 @@ def plot_data(atomkind_files):
         # Add a legend
         bs_plot_merged.legend(fontsize=6, bbox_to_anchor=(1.02, 1), loc='upper left', borderaxespad=0., handlelength=0.5)
         # Save as PNG
-        fig.savefig(f"{os.path.join(NEW_DIR, atomkind_files['merged'][carbon_index])}_BS.png", dpi=dpi, bbox_inches='tight')
+        fig.savefig(f"{os.path.join(NEW_DIR, atomkind_files['merged'][carbon_index])}merged_BS.png", dpi=dpi, bbox_inches='tight')
         plt.clf()
         plt.close(fig)
 
