@@ -473,9 +473,11 @@ def check_fermi_energy(unrestricted_files: Dict[str, List[str]]) -> None:
             fermi_beta = line.split('E(Fermi) =')[1].split('a.u.')[0].strip()
         if fermi_alpha != fermi_beta:
             with open(os.path.join(NEW_DIR, unrestricted_files['beta'][index]),
-                      'r+', encoding='utf8') as file:
+                      'r', encoding='utf8') as file:
                 old_fermi = file.read()
                 new_fermi = old_fermi.replace(fermi_beta, fermi_alpha)
+            with open(os.path.join(NEW_DIR, unrestricted_files['beta'][index]),
+                      'w', encoding='utf8') as file:
                 file.write(new_fermi)
                 sys.stdout.write(f"E Fermi = (changed) {fermi_beta} -> {fermi_alpha} "
                                  f"in {unrestricted_files['beta'][index]} (path: {NEW_DIR_NAME})\n")
