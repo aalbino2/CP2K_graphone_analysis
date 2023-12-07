@@ -635,7 +635,7 @@ def plot_data(atomkind_files):
     labels = labels[1:-1]
     # Set the modified ticks and labels
     plt.xticks(ticks, labels)
-    #plt.gca().set_yticklabels([], visible=False)
+    plt.gca().set_yticklabels([], visible=False)
     # Set the axis labels and title
     total_plot.set_xlabel('Energy (eV)')
     total_plot.set_ylabel('Total DOS (a. u.)')
@@ -671,7 +671,7 @@ def plot_data(atomkind_files):
                 break
         band_gap = abs(data_alpha[:, 0][lower_bound]) + abs(data_alpha[:, 0][upper_bound])
 
-    total_plot.set_title(f"Band gap = {band_gap} eV")
+    total_plot.set_title(f"Band gap = {band_gap:.2f} eV")
 
     # Save as PNG
     fig_tot.savefig(f"{os.path.join(NEW_DIR, atomkind_files['alpha'][0]).replace('ALPHA','TOTAL')}.png", dpi=dpi, bbox_inches='tight')
