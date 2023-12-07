@@ -11,7 +11,7 @@
             "program": "/home/andrea/Data/Uni/5_DOTTORATO/GRAFENE/CP2K_graphone_analysis/g_cp2k_dos_2023.py", // "${file}",
             "console": "integratedTerminal",
             "justMyCode": true,
-            "cwd": "/home/andrea/Data/Uni/5_DOTTORATO/GRAFENE/ARTICOLO/DATA/Graphone_@4Au_chair_AF",  // "${workspaceFolder}",
+            "cwd": "/home/andrea/Data/Uni/5_DOTTORATO/GRAFENE/ARTICOLO/3.0_DATA/Graphone_@4Au_chair_AF",  // "${workspaceFolder}",
             "args": [
               "-f",
               "GrafoneTRI4AuSmearAucellBSnp+64AF-BETA_k5-1.pdos"
@@ -24,13 +24,19 @@
             "program": "/home/andrea/Data/Uni/5_DOTTORATO/GRAFENE/CP2K_graphone_analysis/grafone.py", // "${file}",
             "console": "integratedTerminal",
             "justMyCode": true,
-            "cwd": "/home/andrea/Data/Uni/5_DOTTORATO/GRAFENE/ARTICOLO/DATA/Graphone_@4Au_chair_AF",  // "${workspaceFolder}",
+            // "cwd": "/home/andrea/Data/Uni/5_DOTTORATO/GRAFENE/ARTICOLO/3.0_DATA/Graphone_filare_128H",  // "${workspaceFolder}",
+            // "args": [
+            //   "-o",
+            //   "2filari128H-SPINDENSITY.out",
+            //   "-r",
+            //   "2filari128H-DOS.restart"
+            // ]
+            "cwd": "/home/andrea/Data/Uni/5_DOTTORATO/GRAFENE/ARTICOLO/3.0_DATA/Graphane_TRI",  // "${workspaceFolder}",
             "args": [
               "-o",
-              "GrafoneTRI4AuSmearAucell-BSnp+64_AF_DOS.out",
+              "Grafano-15x15-SMEAR-TRI-geo_DOS.out",
               "-r",
-              "GrafoneTRI4AuSmearAucellBSnp+64AF-DOS.restart" // ,
-              // "-d"
+              "Grafano15x15smearTRIgeo-DOS.restart"
             ]
         },
         {

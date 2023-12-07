@@ -566,6 +566,14 @@ def plot_data(atomkind_files):
         data_beta_bs = np.concatenate((data_beta_c[:, 0].reshape(-1, 1), beta_bs), axis=1)
         data_bs = np.concatenate((data_c[:, 0].reshape(-1, 1), bs), axis=1)
 
+    fig_tot = plt.figure(figsize=(4, 3))
+    total_plot = fig_tot.add_subplot(111)
+    array_length = np.loadtxt(os.path.join(NEW_DIR, atomkind_files['alpha'][0])).shape[0]
+    total_plot_alpha = np.zeros((array_length,))
+    total_plot_beta = np.zeros((array_length,))
+    # Customize the tick marks and grid lines
+    total_plot.tick_params(axis='both', which='both', direction='in', bottom=True, top=True, left=True, right=True)
+    total_plot.grid(True, linestyle='--', linewidth=0.5, alpha=0.7)
     for index, atomkind in enumerate(atomkind_files['kind']):
         data_alpha = np.loadtxt(os.path.join(NEW_DIR, atomkind_files['alpha'][index]))
         data_beta = np.loadtxt(os.path.join(NEW_DIR, atomkind_files['beta'][index]))
@@ -614,6 +622,61 @@ def plot_data(atomkind_files):
         fig.savefig(f"{os.path.join(NEW_DIR, atomkind_files['alpha'][index]).replace('ALPHA','alpha-beta')}.png", dpi=dpi, bbox_inches='tight')
         plt.clf()
         plt.close(fig)
+        # total dos sum
+        total_plot_alpha += data_alpha[:, data_alpha.shape[1] - 1]
+        total_plot_beta += -data_beta[:, data_beta.shape[1] - 1]
+    # total dos plot
+    plt.xlim(-7.5, 7.5)
+    plt.ylim(total_plot_alpha.max(), total_plot_beta.min())
+    # Get the current tick positions and labels
+    ticks, labels = plt.xticks()
+    # Exclude the extreme tick positions and labels
+    ticks = ticks[1:-1]
+    labels = labels[1:-1]
+    # Set the modified ticks and labels
+    plt.xticks(ticks, labels)
+    #plt.gca().set_yticklabels([], visible=False)
+    # Set the axis labels and title
+    total_plot.set_xlabel('Energy (eV)')
+    total_plot.set_ylabel('Total DOS (a. u.)')
+    # Customize the tick marks and grid lines
+    total_plot.tick_params(axis='both', which='both', direction='in', bottom=True, top=True, left=True, right=True)
+    total_plot.grid(True, linestyle='--', linewidth=0.5, alpha=0.7)
+    total_plot.plot(data_alpha[:, 0], total_plot_alpha,
+                            linestyle='-', linewidth=1,
+                            color='r',
+                            label='alpha')
+    total_plot.plot(data_beta[:, 0], total_plot_beta,
+                            linestyle='-', linewidth=1,
+                            color='b',
+                            label='beta')
+    # Add a legend
+    total_plot.legend(fontsize=6, bbox_to_anchor=(1.02, 1), loc='upper left', borderaxespad=0., handlelength=0.5)
+
+    # plot bang gap
+
+    # get index of fermi energy (0 eV)
+    fermi = 0
+    threshold = 0.1
+    index = np.abs(data_alpha[:, 0] - fermi).argmin()
+    band_gap = 0
+    if not total_plot_alpha[index] > threshold:
+        for i in range(index, 0, -1):
+            if total_plot_alpha[i] > threshold:
+                lower_bound = i
+                break
+        for i in range(index, len(total_plot_alpha)):
+            if total_plot_alpha[i] > threshold:
+                upper_bound = i
+                break
+        band_gap = abs(data_alpha[:, 0][lower_bound]) + abs(data_alpha[:, 0][upper_bound])
+
+    total_plot.set_title(f"Band gap = {band_gap} eV")
+
+    # Save as PNG
+    fig_tot.savefig(f"{os.path.join(NEW_DIR, atomkind_files['alpha'][0]).replace('ALPHA','TOTAL')}.png", dpi=dpi, bbox_inches='tight')
+    plt.clf()
+    plt.close(fig_tot)
 
     for index, atomkind in enumerate(atomkind_files['kind']):
         data = np.loadtxt(os.path.join(NEW_DIR, atomkind_files['merged'][index]))
